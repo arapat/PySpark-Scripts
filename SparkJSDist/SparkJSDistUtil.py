@@ -1,11 +1,8 @@
 
-import sys
-from pyspark import SparkContext
 from math import log
 
 class WordCounts:
-
-    def __init__(self, wordcounts, index):
+    def __init__(self, wordcounts, index=-1):
         # A map in form of ("word": count)
         self.index = index
         self.wordcounts = wordcounts
@@ -46,35 +43,4 @@ class WordCounts:
         mean = self + that
         return self.KLdiv(mean) + that.KLdiv(mean)
         
-
-if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print >> sys.stderr, \
-                "Usage: pySparkJSDist <master> <file>"
-        sys.exit(1)
-
-    # Process the input data
-    dist = []
-    input_file = open(sys.argv[2])
-    counter = 0
-    for row in input_file:
-        counter = counter + 1
-        row = row.split()
-        dist.append( \
-                WordCounts({ row[idx]: int(row[idx + 1]) \
-                for idx in range(0,len(row),2)}, counter) )
-    input_file.close()
-
-    # Create Spark context
-    sc = SparkContext(sys.argv[1], "pySparkJSDist")
-    dist_rdd = sc.parallelize(dist).cache()
-
-    # Compute the JS-divergence between each distribution and "one"
-    answer = []
-    for one in dist:
-        JSdiv = lambda x: (one.index, x.index, one.JSdiv(x))
-        answer.append(dist_rdd.map(JSdiv).collect())
-
-    for item in answer:
-        print "(%d, %d) = %f" % (item[0], item[1], item[2])
 
