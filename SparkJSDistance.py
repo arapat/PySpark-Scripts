@@ -1,19 +1,13 @@
-"""
-Expect the input file consists of lines of (word, count)+ 
-Example:
-    Spark 10 is 14 so 21 cool 17
-    Spark 20 is 25 a 10 good 27 tool 10 for 42 data 13 analysis 9
-    PySpark 3 is 30 the 43 Python 8 interface 10 of 52 Spark 13
-"""
 
-
+import sys
 from pyspark import SparkContext
 from math import log
 
 class WordCounts:
 
-    def __init__(self, wordcounts):
+    def __init__(self, wordcounts, index):
         # A map in form of ("word": count)
+        self.index = index
         self.wordcounts = wordcounts
         self.keys = wordcounts.keys()
         self.total = sum(wordcounts.values())
@@ -56,22 +50,31 @@ class WordCounts:
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print >> sys.stderr, \
-                "Usage: PythonJSDistance <master> <word_count file>"
-        exit(-1)
+                "Usage: pySparkJSDist <master> <file>"
+        sys.exit(1)
 
-    data = []
-    for dist in sys.stdin:
-        res = {}
-        dist = dist.split()
-        for idx in range(0, len(dist), 2):
-            res[dist[idx]] = int(dist[idx+1])
+    # Process the input data
+    dist = []
+    input_file = open(sys.argv[2])
+    counter = 0
+    for row in input_file:
+        counter = counter + 1
+        row = row.split()
+        dist.append( \
+                WordCounts({ row[idx]: int(row[idx + 1]) \
+                for idx in range(0,len(row),2)}, counter) )
+    input_file.close()
 
-        data.append(res)
+    # Create Spark context
+    sc = SparkContext(sys.argv[1], "pySparkJSDist")
+    dist_rdd = sc.parallelize(dist).cache()
 
-        
+    # Compute the JS-divergence between each distribution and "one"
+    answer = []
+    for one in dist:
+        JSdiv = lambda x: (one.index, x.index, one.JSdiv(x))
+        answer.append(dist_rdd.map(JSdiv).collect())
 
-    pair = []
-    for a in data:
-        for b in data:
-            if a != b:
+    for item in answer:
+        print "(%d, %d) = %f" % (item[0], item[1], item[2])
 
