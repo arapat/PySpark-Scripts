@@ -1,6 +1,7 @@
 """
 Revised based on PySpark example (https://github.com/mesos/spark/tree/master/python/examples)
-This example requires numpy (http://www.numpy.org/)
+This script requires numpy (http://www.numpy.org/)
+Data points distance measured with JS-divergence.
 """
 import sys
 from operator import add
