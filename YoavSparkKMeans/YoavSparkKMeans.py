@@ -38,7 +38,7 @@ def entropy(assoc, data_size):
     # Compute the distribution
     dist = assign.map(lambda (x, y): y/data_size)
     # Compute the entropy of the distribution
-    entropy = -dist.map(lambda u: -u*log(u,2)).reduce(add)
+    entropy = dist.map(lambda u: -u*log(u,2)).reduce(add)
     count = dist.count()
     return entropy, count
 
@@ -123,6 +123,11 @@ if __name__ == "__main__":
         changes = minChanges + 1
         prevIndex = [i for i in range(data_size)]
 
+
+        """
+          Two different converge conditions, measured with center moves
+          or changes of cluster.
+        """
         while tempDist > convergeDist:
         #while changes > minChanges:
             # Return the tuple of (closest_center, (data_point_coordinates, 1))
@@ -142,13 +147,10 @@ if __name__ == "__main__":
             curIndex = [x for (x, y) in closestList]
 
             # Center moves
-            tempDist = sum(np.sum((kPoints[x] - y) ** 2) for (x, y) in newPoints)
+            tempDist = np.sum(np.sum((kPoints[x] - y) ** 2) for (x, y) in newPoints)
             # Average distance from each data point to the closest center
-            avgDist = sum(np.sum((newPointsMap[x] - y[0]) ** 2) for (x, y) in closestList)
-            changes = 0
-            for idx, val in enumerate(prevIndex):
-                if val != curIndex[idx]:
-                    changes += 1
+            avgDist = np.sum(np.sum((newPointsMap[x] - y[0]) ** 2) for (x, y) in closestList)
+            changes = np.not_equal(prevIndex, curIndex).sum()
             prevIndex = curIndex
 
             print >> sys.stderr, \
@@ -171,13 +173,20 @@ if __name__ == "__main__":
     for i in range(3):
         # Take K elements randomly
         # TODO: change this after PySpark port takeSample()
+        print "============Iteration " + str(i) + "=============="
+
         kPoints = takeSample(K, data_size, sys.argv[2])
 
         partition = Kmeans(kPoints)
+        print >> sys.stderr, \
+            "[1/3] Kmeans algorithm finished."
         partitions = partitions.join(partition).map(lambda (index, (prev, p)): (index, updateHash(prev, p)))
         e1 = entropy(partition, data_size)
+        print >> sys.stderr, \
+            "[2/3] Computed singleton partition entropy."
         e_total = entropy(partitions, data_size)
-        print "=========================="
+        print >> sys.stderr, \
+            "[3/3] Computed combined partition entropy."
         print "seed:", kPoints
         print "singleton partition =", e1
         print "combined partition =", e_total
